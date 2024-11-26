@@ -1,5 +1,5 @@
 # db_api
-API based on Database System lecture Gachon Univ.
+API based on Database System lecture at Gachon Univ.
 
 # Used library
 
