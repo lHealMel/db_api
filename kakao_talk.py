@@ -14,7 +14,7 @@ def friend_list_query():
     conn = pymysql.connect(host='localhost', port=3306, user='root', password='root', db='kakaotalk')
     sql = (
             """
-            SELECT c.name, ifnull(p.url, "images/0.png") url
+            SELECT c.name, ifnull(p.url, "images/0.png") as url
             FROM T_friend f
             JOIN T_customer c on f.friend_id = c.cust_id
             LEFT JOIN T_picture_update pu on c.cust_id = pu.cust_id
@@ -63,7 +63,7 @@ def birthday_query():
     # to see the output, 2024-10-03, original curdate()
     sql_today = (
             """
-            select tc.name, ifnull(tp.url, 'images/0.png') url from t_friend tf
+            select tc.name, ifnull(tp.url, 'images/0.png') as url from t_friend tf
             join t_customer tc on tf.friend_id = tc.cust_id
             left join t_picture_update tpu on tpu.cust_id = tf.friend_id
             left join t_picture tp on tp.pic_id = tpu.max_pic_id
@@ -76,11 +76,13 @@ def birthday_query():
 
     sql_past = (
             """
-            select tc.name, ifnull(tp.url, 'images/0.png') url from t_friend tf
+            select tc.name, ifnull(tp.url, 'images/0.png') as url from t_friend tf
             join t_customer tc on tf.friend_id = tc.cust_id
             left join t_picture_update tpu on tpu.cust_id = tf.friend_id
             left join t_picture tp on tp.pic_id = tpu.max_pic_id
-            where tf.cust_id = %s and concat(year(curdate()), '-', date_format(birthday, '%%m-%%d')) between date_sub(curdate(), interval 30 day) AND date_sub(curdate(), interval 1 day)
+            where tf.cust_id = %s and 
+            concat(year(curdate()), '-', date_format(birthday, '%%m-%%d')) 
+            between date_sub(curdate(), interval 30 day) AND date_sub(curdate(), interval 1 day)
             order by concat(year(curdate()), '-', date_format(tc.birthday, '%%m-%%d')), tc.name;
             """
             % cust_input
@@ -89,11 +91,13 @@ def birthday_query():
 
     sql_coming = (
             """
-            select tc.name, ifnull(tp.url, 'images/0.png') url from t_friend tf
+            select tc.name, ifnull(tp.url, 'images/0.png') as url from t_friend tf
             join t_customer tc on tf.friend_id = tc.cust_id
             left join t_picture_update tpu on tpu.cust_id = tf.friend_id
             left join t_picture tp on tp.pic_id = tpu.max_pic_id
-            where tf.cust_id = %s and concat(year(curdate()), '-', date_format(tc.birthday, '%%m-%%d')) between date_add(curdate(), interval 1 day) AND date_add(curdate(), interval 30 day)
+            where tf.cust_id = %s and 
+            concat(year(curdate()), '-', date_format(tc.birthday, '%%m-%%d')) 
+            between date_add(curdate(), interval 1 day) AND date_add(curdate(), interval 30 day)
             order by concat(year(curdate()), '-', date_format(tc.birthday, '%%m-%%d')), tc.name;
             """
             % cust_input
@@ -117,7 +121,7 @@ def recommend_friend_query():
     with pymysql.connect(host='localhost', port=3306, user='root', password='root', db='kakaotalk') as conn:
         sql_to_me = (
             """
-            select tc.name, ifnull(tp.url, 'images/0.png') url from t_friend tf
+            select tc.name, ifnull(tp.url, 'images/0.png') as url from t_friend tf
             join t_customer tc on tf.cust_id = tc.cust_id
             left join t_picture_update tpu on tpu.cust_id = tc.cust_id
             left join t_picture tp on tp.pic_id = tpu.max_pic_id
@@ -131,7 +135,7 @@ def recommend_friend_query():
 
         sql_popular = (
             """
-            select tc.name, ifnull(tp.url, 'images/0.png') url from (
+            select tc.name, ifnull(tp.url, 'images/0.png') as url from (
                 select friend_id, count(friend_id) cnt from t_friend
                 where cust_id in 
                     (select friend_id from t_friend
@@ -177,7 +181,8 @@ def chat_detail_query():
 
         sql_chat = (
             """
-            select tcu.name, ifnull(tp.url, 'images/0.png') url, tc.chat, date_format(tc.chat_time, '%%p %%h:%%i') chat_time, if(tcu.cust_id = %s, 1, 0) me from t_chat tc
+            select tcu.name, ifnull(tp.url, 'images/0.png') as url, tc.chat, 
+            date_format(tc.chat_time, '%%p %%h:%%i') as chat_time, if(tcu.cust_id = %s, 1, 0) me from t_chat tc
             join t_customer tcu on tc.cust_id = tcu.cust_id
             left join t_picture_update tpu on tpu.cust_id = tcu.cust_id
             left join t_picture tp on tp.pic_id = tpu.max_pic_id
