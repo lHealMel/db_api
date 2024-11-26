@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import pymysql
 import pandas as pd
 
@@ -110,41 +110,41 @@ def birthday_query():
 def recommend_friend_query():
     request_json = request.get_json()
     cust_input = request_json['cust_id']
-    conn = pymysql.connect(host='localhost', port=3306, user='root', password='root', db='kakaotalk')
-    sql_to_me =(
-        """
-        select tc.name, ifnull(tp.url, 'images/0.png') url from t_friend tf
-        join t_customer tc on tf.cust_id = tc.cust_id
-        left join t_picture_update tpu on tpu.cust_id = tc.cust_id
-        left join t_picture tp on tp.pic_id = tpu.max_pic_id
-        where tf.friend_id = %s and tf.cust_id not in 
-            (select friend_id from t_friend
-            where cust_id = %s)
-        order by tc.name;
-        """ % (cust_input, cust_input)
-    )
-    df_to_me = pd.read_sql_query(sql_to_me, conn)
-
-    sql_popular =(
-        """
-        select tc.name, ifnull(tp.url, 'images/0.png') url from (
-            select friend_id, count(friend_id) cnt from t_friend
-            where cust_id in 
+    with pymysql.connect(host='localhost', port=3306, user='root', password='root', db='kakaotalk') as conn:
+        sql_to_me =(
+            """
+            select tc.name, ifnull(tp.url, 'images/0.png') url from t_friend tf
+            join t_customer tc on tf.cust_id = tc.cust_id
+            left join t_picture_update tpu on tpu.cust_id = tc.cust_id
+            left join t_picture tp on tp.pic_id = tpu.max_pic_id
+            where tf.friend_id = %s and tf.cust_id not in 
                 (select friend_id from t_friend
                 where cust_id = %s)
-            group by friend_id
-        ) a
-        join t_customer tc on tc.cust_id = a.friend_id
-        left join t_picture_update tpu on tpu.cust_id = a.friend_id
-        left join t_picture tp on tp.pic_id = tpu.max_pic_id
-        where a.friend_id not in
-            (select friend_id from t_friend
-            where cust_id = %s)
-            and cnt >= 10
-        order by a.cnt desc;
-        """ % (cust_input, cust_input)
-    )
-    df_popular = pd.read_sql_query(sql_popular, conn)
+            order by tc.name;
+            """
+        )
+        df_to_me = pd.read_sql_query(sql_to_me, conn, params=[cust_input, cust_input])
+
+        sql_popular =(
+            """
+            select tc.name, ifnull(tp.url, 'images/0.png') url from (
+                select friend_id, count(friend_id) cnt from t_friend
+                where cust_id in 
+                    (select friend_id from t_friend
+                    where cust_id = %s)
+                group by friend_id
+            ) a
+            join t_customer tc on tc.cust_id = a.friend_id
+            left join t_picture_update tpu on tpu.cust_id = a.friend_id
+            left join t_picture tp on tp.pic_id = tpu.max_pic_id
+            where a.friend_id not in
+                (select friend_id from t_friend
+                where cust_id = %s)
+                and cnt >= 10
+            order by a.cnt desc;
+            """
+        )
+        df_popular = pd.read_sql_query(sql_popular, conn, params= [cust_input, cust_input])
 
     df_dict = {
         "to_me" : {"name" : df_to_me['name'].tolist(), "image" : df_to_me['url'].tolist()},
@@ -153,6 +153,45 @@ def recommend_friend_query():
 
     return df_dict
 
+@app.route('/chat_detail', methods=['POST'])
+def chat_detail_query():
+    request_json = request.get_json()
+    cust_input = request_json['cust_id']
+    date_input = request_json['date']
+    room_input = request_json['room_id']
+    with pymysql.connect(host='localhost', port=3306, user='root', password='root', db='kakaotalk') as conn:
+        sql_cnt = (
+            """
+            select count(cust_id) as cnt from t_chat_member
+            where room_id = %s
+            group by room_id;
+            """
+        )
+        # to prevent sql injection, the following methods are recommended
+        df_cnt = pd.read_sql_query(sql_cnt, conn, params = [room_input])
+
+        sql_chat = (
+            """
+            select tcu.name, ifnull(tp.url, 'images/0.png') url, tc.chat, date_format(tc.chat_time, '%%p %%h:%%i') chat_time, if(tcu.cust_id = %s, 1, 0) me from t_chat tc
+            join t_customer tcu on tc.cust_id = tcu.cust_id
+            left join t_picture_update tpu on tpu.cust_id = tcu.cust_id
+            left join t_picture tp on tp.pic_id = tpu.max_pic_id
+            where tc.room_id = %s and date(tc.chat_time) = %s
+            order by tc.chat_id;
+            """
+        )
+        df_chat = pd.read_sql_query(sql_chat, conn, params=[cust_input, room_input, date_input])
+
+    df_dict = {
+        "room_id" : room_input, "date" : date_input, "cust_id" :cust_input, "count": df_cnt['cnt'].tolist()[0] if not df_cnt.empty else 0,
+        "chats" :{
+            "chat" : df_chat['chat'].tolist(),
+            "name" : df_chat['name'].tolist(),
+            "image" : df_chat['url'].tolist(),
+            "me" : df_chat['me'].tolist()
+        }
+    }
+    return jsonify(df_dict)
 
 if __name__ == "__main__":
     app.run(debug=True)
