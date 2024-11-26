@@ -1,5 +1,5 @@
 # db_api
-API based on lecture Database System, using flask of python.
+API based on Database System lecture Gachon Univ.
 
 # Used library
 
