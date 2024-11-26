@@ -5,9 +5,9 @@ API based on Database System lecture at Gachon Univ.
 
 - Flask
 
-- pymysql
+- pymysql ~~SQLAlchemy~~ (pymysql will be replaced by SQLAlchemy)
 
-- pandas
+- [pandas](https://pandas.pydata.org/pandas-docs/stable/reference/index.html)
 
 # Code
 
